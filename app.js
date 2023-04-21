@@ -1,17 +1,20 @@
 const express = require("express");
-const MongoClient = require("./app/utils/MongoConnection");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const ApiError = require("./app/utils/api-error");
-// const productsRouter = require("./route");
+const productsRouter = require("./app/router/products.route");
 const customersRouter = require("./app/router/customer.route");
+const loginRouter = require("./app/router/login.route");
 // const testRouter = require("./app/router/testRouter");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 // app.use("/api/test", testRouter);
 app.use("/api/customers", customersRouter);
-// app.use("/api/products", productsRouter);
+app.use("/api/products", productsRouter);
+app.use("/api/login", loginRouter);
 app.get("/", (req, res) => {
   res.json({ message: "This is test from the server" });
 });

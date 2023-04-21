@@ -30,7 +30,7 @@ let login = async (req, res) => {
       //   console.log(token);
       // }
     );
-  console.log("This is ti=oken");
+  console.log("This is token");
   console.log(accesstoken);
   console.log("then");
   let decoded;
