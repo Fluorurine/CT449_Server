@@ -1,6 +1,6 @@
 const MongoUtil = require("../utils/MongoConnection");
 const ApiError = require("../utils/api-error");
-
+const jwt = require("jsonwebtoken");
 //@desc Trả về tất cả các khách hàng trong CSDL\
 //route GET /api/customer/
 //@access private (Chỉ khi có token cùa admin)
@@ -45,6 +45,7 @@ let createNewUser = async (req, res, next) => {
           username: req.body.username,
           email: req.body.useremail,
           password: req.body.password,
+          createdAt: Date.now(),
         });
         res.json({ NewId: result.insertedId });
       }

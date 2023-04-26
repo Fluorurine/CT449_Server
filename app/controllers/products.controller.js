@@ -47,7 +47,7 @@ let findByUserId = async (req, res, next) => {
   }
 };
 //@desc Trả về thông tin của sản phẩm theo id của người dùng
-//@route GET /apo/product/user
+//@route GET /apo/product/user  detail ???
 //access private
 let findById = async (req, res, next) => {
   console.log(req.query.Id);
@@ -64,7 +64,7 @@ let findById = async (req, res, next) => {
     return next(new ApiError(404, "Có lỗi tìm kiếm bằng Id"));
   }
 };
-//@desc Trả về 5 element theo name của products
+//@desc Trả về 5 element theo name của products cho search
 //@route GET /api/products/name
 //access public
 let findByName = async (req, res, next) => {
@@ -89,14 +89,26 @@ let findByArray = async (req, res, next) => {
   try {
     //MongoDB Service
     for (let i = 0; i < req.body.length; i++) {
-      const data = await MongoUtil.getDb("Products").findOne({
-        _id: new ObjectId(req.body[i]),
-      });
+      const data = await MongoUtil.getDb("Products").findOne(
+        {
+          _id: new ObjectId(req.body[i].productId),
+        },
+        {
+          projection: {
+            _id: 1,
+            productname: 1,
+            productimage: 1,
+            productminprice: 1,
+            productsell: 1,
+          },
+        }
+      );
       resultarray.push(data);
     }
 
     res.json(resultarray);
   } catch (e) {
+    console.log("Có lỗi khi tìm thông tin trong giỏ hàng");
     return next(new ApiError(404, "Có lỗi tìm kiếm bằng Id"));
   }
 };
@@ -105,8 +117,10 @@ let findByArray = async (req, res, next) => {
 //access private ( Chỉ có người dùng có token hợp lệ có thể truy cập vào product)
 let createNewProduct = async (req, res, next) => {
   //Kiểm tra xem có người dùng đã đăng nhập chưa
-
+  let variant;
   let decodedtoken;
+  let productminprice;
+  variant = req.body.productvariant;
   try {
     const token = req.cookies.access_token;
     decodedtoken = await jwt.verify(token, "B2111871");
@@ -133,12 +147,11 @@ let createNewProduct = async (req, res, next) => {
   ) {
     return res.json({ err: "Dữ liệu không được chứa kí tự đặc biệt" });
   }
-  let productminprice = req.body.productvariant[0];
+  productminprice = req.body.productvariant[0];
   // Nếu flag là created thì cập nhật dữ liệu
 
   for (let i = 0; i < req.body.productvariant.length; i++) {
     if (
-      !/^[a-zA-Z0-9]*$/.test(req.body.productvariant[i].variantname) ||
       !Number.isInteger(parseInt(req.body.productvariant[i].variantprice)) ||
       !Number.isInteger(parseInt(req.body.productvariant[i].variantcount))
     ) {
@@ -147,14 +160,15 @@ let createNewProduct = async (req, res, next) => {
     if (parseInt(req.body.productvariant[i].variantprice <= 0)) {
       return res.json({ err: "Giá cả mặt hàng chưa hợp lệ" });
     }
-    if (productminprice > req.body.productvariant[i].price) {
-      productminprice = req.body.productvariant[i];
+    if (productminprice > req.body.productvariant[i].variantprice) {
+      productminprice = req.body.productvariant[i].variantprice;
     }
+
     // Nếu chưa có thuộc tính thì thêm vào nễu có rồi thì thối vẫn giữ số lượng đã bán
-    if (!req.body.productvariant[i].variantremain) {
-      req.body.productvariant[i] = {
-        ...req.body.productvariant[i],
-        variantremain: req.body.productvariant[i].variantcount,
+    if (!variant[i].variantremain) {
+      variant[i] = {
+        ...variant[i],
+        variantremain: variant[i].variantcount,
       };
     }
   }
@@ -175,12 +189,15 @@ let createNewProduct = async (req, res, next) => {
           productminprice: parseInt(productminprice),
           productcategory: req.body.productcategory,
           productdescription: req.body.productdescription,
-          productvariant: req.body.productvariant,
+          productvariant: variant,
           productimage: req.body.productimage,
           createdAt: Date.now(),
           editedAt: Date.now(),
           publishBy: decodedtoken.username,
+          reviewcount: 0,
+          totalstar: 0,
         });
+
         return res.json({ NewId: result.insertedId });
       }
     } catch (e) {
@@ -188,8 +205,25 @@ let createNewProduct = async (req, res, next) => {
     }
   }
   // Nếu flag là update thì cập nhật lại CSDL
-  if (flag == "update") {
+  if (req.body.flag == "update") {
     try {
+      console.log(req.body.productId);
+      const test = await MongoUtil.getDb("Products").findOne({
+        _id: new ObjectId(req.body.productId),
+      });
+      console.log(test);
+      //Chỉ có admin và chủ sở hữu có quyền update theo yêu cầu
+      let flag = 1;
+      if (!(test.publishBy == decodedtoken.username)) {
+        flag = 0;
+      }
+      if (decodedtoken.username == "admin") {
+        flag = 1;
+      }
+      if (flag == 0) {
+        return res.json({ err: "Người dùng không hợp lệ" });
+      }
+
       const result = await MongoUtil.getDb("Products").updateOne(
         { _id: new ObjectId(req.body.productId) },
         {
@@ -199,13 +233,14 @@ let createNewProduct = async (req, res, next) => {
             productminprice: parseInt(productminprice),
             productcategory: req.body.productcategory,
             productdescription: req.body.productdescription,
-            productvariant: req.body.productvariant,
+            productvariant: variant,
             productimage: req.body.productimage,
             editedAt: Date.now(),
             publishBy: decodedtoken.username,
           },
         }
       );
+      console.log(result);
       return res.json(result);
     } catch (e) {
       return next(new ApiError(404, "Các trục khác khác khác"));

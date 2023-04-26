@@ -1,9 +1,32 @@
 const MongoUtil = require("../utils/MongoConnection");
 const ApiError = require("../utils/api-error");
 const jwt = require("jsonwebtoken");
-
+//@desc Dùng để lấy thông tin đăng nhập của người dùng đã login
+//route GET/api/login
+//access public
+const getLoginInfo = async (req, res, next) => {
+  let user;
+  try {
+    if (!req.cookies.access_token) {
+      return res.json({ err: "No token found" });
+    }
+    let decoded;
+    decoded = await jwt.verify(req.cookies.access_token, "B2111871");
+    user = await MongoUtil.getDb("Customer").findOne({
+      username: decoded.username,
+    });
+  } catch (e) {
+    if (e.name === "TokenExpiredError") {
+      return res.json({ err: "Ngừoi dùng đã hết phiên đăng nhập" });
+    }
+    return res.json({
+      err: "Token không hợp lệ",
+    });
+  }
+  res.json(user);
+};
 //@desc Dùng để đăng nhập người dùng (Trả về JWT Token lưu vào Cookie để Website sau có thể nhớ)
-//route /api/login
+//route POST/api/login
 //access public
 let login = async (req, res, next) => {
   let currentuser;
@@ -30,11 +53,11 @@ let login = async (req, res, next) => {
           password: currentuser.password,
         },
         "B2111871",
-        { expiresIn: "8m" }
+        { expiresIn: "15m" }
       );
 
       res.cookie("access_token", accesstoken, {
-        maxAge: 60000 * 8,
+        maxAge: 60000 * 15,
         httpOnly: true,
         //secure: true
       });
@@ -47,4 +70,8 @@ let login = async (req, res, next) => {
     return next(new ApiError(404, "Có lỗi khi đăng nhập"));
   }
 };
-module.exports = { login };
+let logout = async (req, res, next) => {
+  res.clearCookie("access_token");
+  res.json({ status: "Logout success" });
+};
+module.exports = { login, getLoginInfo, logout };

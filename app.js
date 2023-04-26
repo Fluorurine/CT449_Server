@@ -5,6 +5,8 @@ const ApiError = require("./app/utils/api-error");
 const productsRouter = require("./app/router/products.route");
 const customersRouter = require("./app/router/customer.route");
 const loginRouter = require("./app/router/login.route");
+const commentRouter = require("./app/router/comment.route");
+const transactionRouter = require("./app/router/transaction.route");
 // const testRouter = require("./app/router/testRouter");
 
 const app = express();
@@ -15,6 +17,8 @@ app.use(cookieParser());
 app.use("/api/customers", customersRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/login", loginRouter);
+app.use("/api/comment", commentRouter);
+app.use("/api/transaction", transactionRouter);
 app.get("/", (req, res) => {
   res.json({ message: "This is test from the server" });
 });
