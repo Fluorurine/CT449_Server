@@ -1,6 +1,7 @@
 const MongoUtil = require("../utils/MongoConnection");
 const ApiError = require("../utils/api-error");
 const jwt = require("jsonwebtoken");
+const { ObjectId } = require("mongodb");
 //@desc Trả về tất cả các khách hàng trong CSDL\
 //route GET /api/customer/
 //@access private (Chỉ khi có token cùa admin)
@@ -87,9 +88,21 @@ let createNewUser = async (req, res, next) => {
 //route DELETE /api/customers/
 //access private Chỉ có admin có thể thi hành
 let deleteAllUser = async (req, res, next) => {
+  if (req.query.id) {
+    try {
+      console.log(req.query.id);
+      const result = await MongoUtil.getDb("Customer").deleteOne({
+        _id: new ObjectId(req.query.id),
+      });
+
+      return res.json(result);
+    } catch (e) {
+      return next(new ApiError(404, "Có lỗi CSDL khi xóa người dùng bởi id."));
+    }
+  }
   try {
     const result = await MongoUtil.getDb("Customer").deleteMany({});
-    res.json(result);
+    return res.json(result);
   } catch (e) {
     return next(new ApiError(404, "Có lỗi CSDL khi xóa tất cả người dùng."));
   }

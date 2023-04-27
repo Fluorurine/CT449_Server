@@ -1,5 +1,6 @@
 const MongoUtil = require("../utils/MongoConnection");
 const ApiError = require("../utils/api-error");
+const { ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 //@desc Trả về tất cả các bình luận trong CSDL theo id của sản phẩm
 //route GET /api/comment/
@@ -23,37 +24,39 @@ let findAll = async (req, res, next) => {
 //route POST /api/comment
 //@access public
 let createNewComment = async (req, res, next) => {
-  if (!req.body.content) {
+  if (!req.body.reviewdata) {
     // Chống XSS
     return res.json({ err: "Không có nội dung bình luận" });
   }
 
   try {
     const token = req.cookies.access_token;
-    decodedtoken = await jwt.verify(token, "B2111871");
+    let decodedtoken = await jwt.verify(token, "B2111871");
     if (!decodedtoken) {
       return res.json({ err: "Người dùng chưa đăng nhập" });
     }
-    // Cập nhật CSDL dể + thêm sao vào dữ liệu được chọn
-    await MongoUtil.getDb("Products").updateOne(
+    const userdata = await MongoUtil.getDb("Customer").findOne({
+      username: decodedtoken.username,
+    });
+    let userimage;
+    if (!userdata.userimage) {
+      userimage = "\\upload\\blank_picture.png";
+    } else {
+      userimage = userdata.userimage;
+    }
+    const test = await MongoUtil.getDb("Products").updateOne(
       { _id: new ObjectId(req.body.productId) },
       {
-        $inc: { totalstar: parseInt(req.body.star), reviewcount: 1 },
+        $inc: { reviewcount: 1, totalstar: parseInt(req.body.star) },
       }
     );
-    const userdata = await MongoUtil.getDb("Customer").findOne({
-      username: decoded.userbane,
-    });
-    if (!userdata.userimage) {
-      req.body.userimage = "upload/blank_image";
-    } else {
-      req.body.userimage = userdata.userimage;
-    }
+    console.log(test);
+
     // Cập nhật cơ sở dữ liệu để thêm comment mới
     const result = await MongoUtil.getDb("Comment").insertOne({
       username: decodedtoken.username,
-      userimage: req.body.userimage,
-      review: req.body.review,
+      userimage: userimage,
+      reviewdata: req.body.reviewdata,
       product_id: req.body.productId,
       star: req.body.star,
       createdAt: Date.now(),

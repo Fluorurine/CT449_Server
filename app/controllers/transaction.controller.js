@@ -1,6 +1,7 @@
 const MongoUtil = require("../utils/MongoConnection");
 const ApiError = require("../utils/api-error");
 const jwt = require("jsonwebtoken");
+const { ObjectId } = require("mongodb");
 //@desc Trả về tất cả các bình luận trong CSDL theo id của sản phẩm
 //route GET /api/comment/
 //@access public
@@ -59,11 +60,19 @@ let createNewTransaction = async (req, res, next) => {
 //route DELETE /api/customers/
 //access private Chỉ có admin có thể thi hành
 let deleteAllTransaction = async (req, res, next) => {
-  try {
-    const result = await MongoUtil.getDb("Customer").deleteMany({});
-    res.json(result);
-  } catch (e) {
-    return next(new ApiError(404, "Có lỗi CSDL khi xóa tất cả người dùng."));
+  if (req.query.id) {
+    console.log(req.query.id);
+    const result = await MongoUtil.getDb("Transaction").deleteOne({
+      _id: new ObjectId(req.query.id),
+    });
+    return res.json(result);
   }
+
+  // try {
+  //   const result = await MongoUtil.getDb("Transaction").deleteMany({});
+  //   res.json(result);
+  // } catch (e) {
+  //   return next(new ApiError(404, "Có lỗi CSDL khi xóa tất cả người dùng."));
+  // }
 };
 module.exports = { findAll, createNewTransaction, deleteAllTransaction };
